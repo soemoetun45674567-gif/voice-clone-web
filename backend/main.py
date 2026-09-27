@@ -2,12 +2,16 @@ from fastapi import FastAPI, UploadFile, File, Form
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import JSONResponse
+
 import os
 import uuid
+import soundfile as sf
 
-app = FastAPI(title="Free Voice Clone API")
+from voxcpm import VoxCPM
 
-# Allow frontend to connect
+
+app = FastAPI(title="Free Myanmar Voice Clone API")
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -16,18 +20,29 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Create folders
 os.makedirs("outputs", exist_ok=True)
 os.makedirs("uploads", exist_ok=True)
 
-app.mount("/outputs", StaticFiles(directory="outputs"), name="outputs")
+app.mount(
+    "/outputs",
+    StaticFiles(directory="outputs"),
+    name="outputs"
+)
+
+
+# Load VoxCPM2 model
+model = VoxCPM.from_pretrained(
+    "openbmb/VoxCPM2",
+    load_denoiser=False
+)
 
 
 @app.get("/")
 def home():
     return {
         "status": "ok",
-        "message": "Voice Clone API is running"
+        "model": "VoxCPM2",
+        "message": "Myanmar Voice Clone API is running"
     }
 
 
@@ -36,25 +51,37 @@ async def generate(
     voice: UploadFile = File(...),
     text: str = Form(...)
 ):
-    # Save uploaded voice sample
     voice_id = str(uuid.uuid4())
 
-    voice_ext = os.path.splitext(voice.filename or ".wav")[1]
+    # Save reference voice
+    voice_ext = os.path.splitext(
+        voice.filename or ".wav"
+    )[1]
+
     voice_path = f"uploads/{voice_id}{voice_ext}"
 
     with open(voice_path, "wb") as f:
         f.write(await voice.read())
 
-    # Temporary placeholder
-    # Real voice cloning model will be connected here next.
+    # Generate cloned voice
+    audio = model.generate(
+        text=text,
+        reference_wav_path=voice_path,
+        cfg_value=2.0,
+        inference_timesteps=10
+    )
+
+    # Save audio
     audio_name = f"{voice_id}.wav"
     audio_path = f"outputs/{audio_name}"
 
-    # Create empty placeholder file for now
-    with open(audio_path, "wb") as f:
-        f.write(b"")
+    sf.write(
+        audio_path,
+        audio,
+        model.tts_model.sample_rate
+    )
 
-    # Create SRT
+    # Simple SRT
     srt_name = f"{voice_id}.srt"
     srt_path = f"outputs/{srt_name}"
 
