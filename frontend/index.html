@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="my">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Voice Clone Web</title>
+
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            font-family: Arial, sans-serif;
+            background: #f4f6f8;
+            color: #222;
+        }
+
+        .container {
+            width: 92%;
+            max-width: 700px;
+            margin: 40px auto;
+        }
+
+        .card {
+            background: white;
+            padding: 25px;
+            border-radius: 18px;
+            box-shadow: 0 5px 25px rgba(0,0,0,0.08);
+        }
+
+        h1 {
+            text-align: center;
+            margin-bottom: 8px;
+        }
+
+        .subtitle {
+            text-align: center;
+            color: #666;
+            margin-bottom: 25px;
+        }
+
+        label {
+            display: block;
+            margin-top: 18px;
+            margin-bottom: 8px;
+            font-weight: bold;
+        }
+
+        input[type="file"],
+        textarea,
+        select {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: 10px;
+            font-size: 16px;
+        }
+
+        textarea {
+            min-height: 180px;
+            resize: vertical;
+        }
+
+        button {
+            width: 100%;
+            margin-top: 20px;
+            padding: 14px;
+            border: none;
+            border-radius: 10px;
+            font-size: 17px;
+            cursor: pointer;
+            background: #111;
+            color: white;
+        }
+
+        button:hover {
+            opacity: 0.9;
+        }
+
+        .audio-box {
+            margin-top: 25px;
+            padding: 15px;
+            background: #f5f5f5;
+            border-radius: 10px;
+        }
+
+        audio {
+            width: 100%;
+        }
+
+        .downloads {
+            display: flex;
+            gap: 10px;
+        }
+
+        .downloads button {
+            margin-top: 10px;
+        }
+
+        .status {
+            margin-top: 20px;
+            text-align: center;
+            color: #666;
+        }
+    </style>
+</head>
+
+<body>
+
+<div class="container">
+
+    <div class="card">
+
+        <h1>🎙️ Voice Clone</h1>
+
+        <div class="subtitle">
+            Text → Voice + SRT
+        </div>
+
+        <label>Voice Sample</label>
+
+        <input
+            type="file"
+            id="voiceFile"
+            accept="audio/*"
+        >
+
+        <label>Voice</label>
+
+        <select id="voice">
+            <option value="my_voice">My Voice</option>
+        </select>
+
+        <label>Text</label>
+
+        <textarea
+            id="text"
+            placeholder="ဒီနေရာမှာ အသံဖတ်စေချင်တဲ့စာကို ရိုက်ပါ..."
+        ></textarea>
+
+        <button onclick="generateVoice()">
+            🎙️ Generate Voice
+        </button>
+
+        <div class="status" id="status">
+            Ready
+        </div>
+
+        <div class="audio-box">
+
+            <audio
+                id="audioPlayer"
+                controls
+            ></audio>
+
+            <div class="downloads">
+
+                <button onclick="downloadAudio()">
+                    🔊 Download Audio
+                </button>
+
+                <button onclick="downloadSRT()">
+                    📝 Download SRT
+                </button>
+
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+
+<script>
+
+let generatedAudio = null;
+let generatedSRT = null;
+
+async function generateVoice() {
+
+    const voiceFile =
+        document.getElementById("voiceFile").files[0];
+
+    const text =
+        document.getElementById("text").value;
+
+    const status =
+        document.getElementById("status");
+
+    if (!voiceFile) {
+        alert("Voice sample တစ်ခုရွေးပါ။");
+        return;
+    }
+
+    if (!text.trim()) {
+        alert("အသံဖတ်မယ့်စာကို ထည့်ပါ။");
+        return;
+    }
+
+    status.innerText = "Generating...";
+
+    const formData = new FormData();
+
+    formData.append("voice", voiceFile);
+    formData.append("text", text);
+
+    try {
+
+        const response = await fetch(
+            "http://localhost:8000/generate",
+            {
+                method: "POST",
+                body: formData
+            }
+        );
+
+        if (!response.ok) {
+            throw new Error("Server error");
+        }
+
+        const data = await response.json();
+
+        generatedAudio = data.audio;
+        generatedSRT = data.srt;
+
+        document.getElementById(
+            "audioPlayer"
+        ).src = data.audio;
+
+        status.innerText = "✅ Complete";
+
+    } catch (error) {
+
+        console.error(error);
+
+        status.innerText =
+            "❌ Backend server မချိတ်နိုင်ပါ";
+
+    }
+}
+
+function downloadAudio() {
+
+    if (!generatedAudio) {
+        alert("အရင် Generate လုပ်ပါ။");
+        return;
+    }
+
+    const link = document.createElement("a");
+
+    link.href = generatedAudio;
+    link.download = "voice.wav";
+
+    link.click();
+}
+
+function downloadSRT() {
+
+    if (!generatedSRT) {
+        alert("အရင် Generate လုပ်ပါ။");
+        return;
+    }
+
+    const link = document.createElement("a");
+
+    link.href = generatedSRT;
+    link.download = "subtitle.srt";
+
+    link.click();
+}
+
+</script>
+
+</body>
+</html>
